@@ -1,12 +1,11 @@
 import { createRootRoute, createRoute, Outlet, createRouter } from "@tanstack/react-router";
-import { MantineProvider, createTheme, AppShell, NavLink, Group, Title, Avatar } from "@mantine/core";
+import { MantineProvider, createTheme, AppShell, NavLink } from "@mantine/core";
 import "@mantine/core/styles.css";
 import "@mantine/dates/styles.css";
 import { Link, useLocation } from "@tanstack/react-router";
 import { useState } from "react";
-import { Container, Text as MantineText } from "@mantine/core";
 import { ScheduleCalendar, type CalendarEvent } from "./components/ScheduleCalendar";
-import { IconCalendar, IconHome, IconUsers, IconClock, IconSettings, IconUser } from "@tabler/icons-react";
+import { IconCalendar, IconHome, IconUsers, IconClock, IconSettings } from "@tabler/icons-react";
 
 const theme = createTheme({
   primaryColor: "blue",
@@ -27,22 +26,9 @@ const RootComponent = () => {
   return (
     <MantineProvider theme={theme}>
       <AppShell
-        header={{ height: 50 }}
         navbar={{ width: 60, breakpoint: "sm" }}
         padding={0}
       >
-        <AppShell.Header>
-          <Group h="100%" px="md" justify="space-between">
-            <Title order={4}>Practice Management</Title>
-            <Group gap="sm">
-              <Avatar size="sm" radius="xl" color="blue">
-                <IconUser size={16} />
-              </Avatar>
-              <MantineText size="sm">Dr. Smith</MantineText>
-            </Group>
-          </Group>
-        </AppShell.Header>
-
         <AppShell.Navbar p={4}>
           <AppShell.Section>
             {navItems.map((item) => (
@@ -78,10 +64,10 @@ const RootComponent = () => {
 
 const IndexComponent = () => {
   return (
-    <Container size="xl" py="xl">
-      <Title order={1}>Practice Management</Title>
-      <MantineText c="dimmed">Welcome to the Practice Management System</MantineText>
-    </Container>
+    <div style={{ padding: 20 }}>
+      <h1>Practice Management</h1>
+      <p>Welcome to the Practice Management System</p>
+    </div>
   );
 };
 

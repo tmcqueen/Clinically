@@ -142,7 +142,6 @@ function DayView({
   currentTime: Date;
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
   
   useEffect(() => {
     if (scrollRef.current) {
@@ -151,8 +150,6 @@ function DayView({
       scrollRef.current.scrollTop = Math.max(0, scrollPosition);
     }
   }, []);
-  
-  const containerWidth = containerRef.current?.offsetWidth ? containerRef.current.offsetWidth - TIME_RULER_WIDTH : 500;
   
   const getEventColor = (event: CalendarEvent): string => {
     switch (filters.colorBy) {
@@ -186,23 +183,17 @@ function DayView({
   const quarterHours = [0, 15, 30, 45];
   
   const positionedEvents = useMemo(
-    () => calculateEventPositions(dayEvents, containerWidth),
-    [dayEvents, containerWidth]
+    () => calculateEventPositions(dayEvents, 400),
+    [dayEvents]
   );
   
-  const handleScroll = () => {
-    // Time ruler scrolls with content - no additional sync needed since they're in the same scroll container
-  };
-  
   return (
-    <Box 
-      ref={containerRef}
+    <Box
+      ref={scrollRef}
       style={{ 
-        height: "calc(100vh - 100px)", 
+        height: "100%", 
+        overflowY: "auto",
         display: "flex",
-        overflow: "hidden",
-        margin: 0,
-        padding: 0,
       }}
     >
       <Box
@@ -211,7 +202,9 @@ function DayView({
           flexShrink: 0,
           borderRight: "1px solid #e0e0e0",
           backgroundColor: "#fafafa",
-          overflow: "hidden",
+          position: "sticky",
+          left: 0,
+          zIndex: 20,
         }}
       >
         {hours.map((hour) => (
@@ -234,16 +227,8 @@ function DayView({
         ))}
       </Box>
       
-      <Box
-        ref={scrollRef}
-        onScroll={handleScroll}
-        style={{
-          flex: 1,
-          overflowY: "auto",
-          position: "relative",
-        }}
-      >
-        <Box style={{ position: "relative", height: TOTAL_HOURS * HOUR_HEIGHT, minWidth: "100%" }}>
+      <Box style={{ flex: 1, position: "relative" }}>
+        <Box style={{ height: TOTAL_HOURS * HOUR_HEIGHT }}>
           {hours.map((hour) => (
             <Box
               key={hour}
