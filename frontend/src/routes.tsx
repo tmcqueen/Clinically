@@ -1,5 +1,5 @@
 import { createRootRoute, createRoute, Outlet, createRouter } from "@tanstack/react-router";
-import { MantineProvider, createTheme, AppShell, NavLink, Group, Title, Avatar, Divider } from "@mantine/core";
+import { MantineProvider, createTheme, AppShell, NavLink, Group, Title, Avatar } from "@mantine/core";
 import "@mantine/core/styles.css";
 import "@mantine/dates/styles.css";
 import { Link, useLocation } from "@tanstack/react-router";
@@ -22,15 +22,14 @@ const navItems = [
 ];
 
 const RootComponent = () => {
-  const [collapsed] = useState(false);
   const location = useLocation();
   
   return (
     <MantineProvider theme={theme}>
       <AppShell
         header={{ height: 50 }}
-        navbar={{ width: collapsed ? 70 : 220, breakpoint: "sm" }}
-        padding="xs"
+        navbar={{ width: 60, breakpoint: "sm" }}
+        padding={0}
       >
         <AppShell.Header>
           <Group h="100%" px="md" justify="space-between">
@@ -44,30 +43,27 @@ const RootComponent = () => {
           </Group>
         </AppShell.Header>
 
-        <AppShell.Navbar p="xs">
+        <AppShell.Navbar p={4}>
           <AppShell.Section>
             {navItems.map((item) => (
               <NavLink
                 key={item.path}
                 component={Link}
                 to={item.path}
-                label={collapsed ? undefined : item.label}
                 leftSection={<item.icon size={20} />}
                 active={location.pathname === item.path}
                 disabled={item.disabled}
                 variant="light"
-                style={{ borderRadius: 8 }}
+                style={{ borderRadius: 8, justifyContent: "center", padding: "10px" }}
               />
             ))}
           </AppShell.Section>
           
           <AppShell.Section grow mt="auto">
-            <Divider mb="sm" />
             <NavLink
-              label={collapsed ? undefined : "Logout"}
               leftSection={<IconSettings size={20} />}
               variant="light"
-              style={{ borderRadius: 8 }}
+              style={{ borderRadius: 8, justifyContent: "center", padding: "10px" }}
             />
           </AppShell.Section>
         </AppShell.Navbar>
@@ -118,6 +114,17 @@ const mockEvents: CalendarEvent[] = [
     patientName: "Bob Wilson",
     clinicianName: "dr-smith",
     visitType: "consultation",
+    start: "2026-02-20T09:15:00",
+    end: "2026-02-20T09:45:00",
+    status: "scheduled",
+    colorBy: "clinician",
+  },
+  {
+    id: "4",
+    title: "Annual Checkup",
+    patientName: "Alice Johnson",
+    clinicianName: "dr-jones",
+    visitType: "checkup",
     start: "2026-02-21T14:00:00",
     end: "2026-02-21T15:00:00",
     status: "scheduled",

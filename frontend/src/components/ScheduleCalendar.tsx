@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import {
   Paper,
   Group,
@@ -79,6 +79,55 @@ function useCurrentTime(updateInterval: number = 300000) {
   return currentTime;
 }
 
+interface PositionedEvent {
+  event: CalendarEvent;
+  top: number;
+  height: number;
+  left: number;
+  width: number;
+}
+
+function calculateEventPositions(events: CalendarEvent[], containerWidth: number): PositionedEvent[] {
+  const sorted = [...events].sort((a, b) => {
+    return dayjs(a.start).valueOf() - dayjs(b.start).valueOf();
+  });
+  
+  const positioned: PositionedEvent[] = [];
+  const GAP = 2;
+  
+  for (const event of sorted) {
+    const start = dayjs(event.start);
+    const end = dayjs(event.end);
+    const durationMinutes = end.diff(start, "minute");
+    
+    const top = (start.hour() * 60 + start.minute()) * MINUTE_HEIGHT;
+    const height = durationMinutes * MINUTE_HEIGHT;
+    
+    let left = GAP;
+    let width = containerWidth - GAP * 2;
+    
+    for (const existing of positioned) {
+      const existingStart = existing.top;
+      const existingEnd = existing.top + existing.height;
+      
+      if (top < existingEnd && top + height > existingStart) {
+        left = existing.left + existing.width + GAP;
+        width = containerWidth - left - GAP;
+      }
+    }
+    
+    if (left + width > containerWidth) {
+      width = containerWidth - left - GAP;
+    }
+    
+    if (width > 10) {
+      positioned.push({ event, top, height, left, width: Math.max(50, width) });
+    }
+  }
+  
+  return positioned;
+}
+
 function DayView({
   events,
   selectedDate,
@@ -93,7 +142,7 @@ function DayView({
   currentTime: Date;
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
-  const timeRulerRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   
   useEffect(() => {
     if (scrollRef.current) {
@@ -102,6 +151,8 @@ function DayView({
       scrollRef.current.scrollTop = Math.max(0, scrollPosition);
     }
   }, []);
+  
+  const containerWidth = containerRef.current?.offsetWidth ? containerRef.current.offsetWidth - TIME_RULER_WIDTH : 500;
   
   const getEventColor = (event: CalendarEvent): string => {
     switch (filters.colorBy) {
@@ -134,10 +185,27 @@ function DayView({
   const hours = Array.from({ length: TOTAL_HOURS }, (_, i) => i);
   const quarterHours = [0, 15, 30, 45];
   
+  const positionedEvents = useMemo(
+    () => calculateEventPositions(dayEvents, containerWidth),
+    [dayEvents, containerWidth]
+  );
+  
+  const handleScroll = () => {
+    // Time ruler scrolls with content - no additional sync needed since they're in the same scroll container
+  };
+  
   return (
-    <Box style={{ display: "flex", height: "calc(100vh - 180px)", overflow: "hidden" }}>
+    <Box 
+      ref={containerRef}
+      style={{ 
+        height: "calc(100vh - 100px)", 
+        display: "flex",
+        overflow: "hidden",
+        margin: 0,
+        padding: 0,
+      }}
+    >
       <Box
-        ref={timeRulerRef}
         style={{
           width: TIME_RULER_WIDTH,
           flexShrink: 0,
@@ -168,13 +236,14 @@ function DayView({
       
       <Box
         ref={scrollRef}
+        onScroll={handleScroll}
         style={{
           flex: 1,
           overflowY: "auto",
           position: "relative",
         }}
       >
-        <Box style={{ position: "relative", height: TOTAL_HOURS * HOUR_HEIGHT }}>
+        <Box style={{ position: "relative", height: TOTAL_HOURS * HOUR_HEIGHT, minWidth: "100%" }}>
           {hours.map((hour) => (
             <Box
               key={hour}
@@ -222,12 +291,8 @@ function DayView({
             </Box>
           )}
           
-          {dayEvents.map((event) => {
+          {positionedEvents.map(({ event, top, height, left, width }) => {
             const start = dayjs(event.start);
-            const end = dayjs(event.end);
-            const durationMinutes = end.diff(start, "minute");
-            const topPosition = (start.hour() * 60 + start.minute()) * MINUTE_HEIGHT;
-            const height = durationMinutes * MINUTE_HEIGHT;
             
             return (
               <Paper
@@ -235,9 +300,9 @@ function DayView({
                 p="xs"
                 style={{
                   position: "absolute",
-                  top: topPosition,
-                  left: 4,
-                  right: 4,
+                  top: top,
+                  left: left + 4,
+                  width: width - 8,
                   height: height - 4,
                   backgroundColor: getEventColor(event),
                   cursor: "pointer",
@@ -246,10 +311,10 @@ function DayView({
                 }}
                 onClick={() => onEventClick?.(event)}
               >
-                <Text size="xs" c="white" fw={500}>
+                <Text size="xs" c="white" fw={500} lineClamp={1}>
                   {start.format("h:mm A")} - {event.patientName}
                 </Text>
-                <Text size="xs" c="white" opacity={0.8}>
+                <Text size="xs" c="white" opacity={0.8} lineClamp={1}>
                   {event.visitType}
                 </Text>
               </Paper>
@@ -302,8 +367,8 @@ export function ScheduleCalendar({
   };
 
   return (
-    <Paper p="xs" style={{ height: "calc(100vh - 60px)", display: "flex", flexDirection: "column" }}>
-      <Group mb="xs" align="center" gap="xs">
+    <Paper style={{ height: "100vh", display: "flex", flexDirection: "column", margin: 0, padding: 0, borderRadius: 0 }}>
+      <Group mb="xs" align="center" gap="xs" p="xs">
         <Button variant="subtle" size="xs" onClick={() => navigateDate("prev")}>
           Previous
         </Button>
