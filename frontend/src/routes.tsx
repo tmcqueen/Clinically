@@ -1,34 +1,77 @@
 import { createRootRoute, createRoute, Outlet, createRouter } from "@tanstack/react-router";
-import { MantineProvider, createTheme, AppShell, Group, Button, Title } from "@mantine/core";
+import { MantineProvider, createTheme, AppShell, NavLink, Group, Title, Avatar, Divider } from "@mantine/core";
 import "@mantine/core/styles.css";
 import "@mantine/dates/styles.css";
-import { Link } from "@tanstack/react-router";
+import { Link, useLocation } from "@tanstack/react-router";
 import { useState } from "react";
-import { Container, Text } from "@mantine/core";
+import { Container, Text as MantineText } from "@mantine/core";
 import { ScheduleCalendar, type CalendarEvent } from "./components/ScheduleCalendar";
+import { IconCalendar, IconHome, IconUsers, IconClock, IconSettings, IconUser } from "@tabler/icons-react";
 
 const theme = createTheme({
   primaryColor: "blue",
   fontFamily: "system-ui, -apple-system, sans-serif",
 });
 
+const navItems = [
+  { label: "Home", icon: IconHome, path: "/" },
+  { label: "Calendar", icon: IconCalendar, path: "/calendar" },
+  { label: "Patients", icon: IconUsers, path: "/patients", disabled: true },
+  { label: "Appointments", icon: IconClock, path: "/appointments", disabled: true },
+  { label: "Settings", icon: IconSettings, path: "/settings", disabled: true },
+];
+
 const RootComponent = () => {
+  const [collapsed] = useState(false);
+  const location = useLocation();
+  
   return (
     <MantineProvider theme={theme}>
-      <AppShell header={{ height: 60 }} padding="md">
+      <AppShell
+        header={{ height: 50 }}
+        navbar={{ width: collapsed ? 70 : 220, breakpoint: "sm" }}
+        padding="xs"
+      >
         <AppShell.Header>
-          <Group h="100%" px="md">
-            <Title order={3}>Practice Management</Title>
-            <Group ml="auto">
-              <Button component={Link} to="/" variant="subtle">
-                Home
-              </Button>
-              <Button component={Link} to="/calendar" variant="subtle">
-                Calendar
-              </Button>
+          <Group h="100%" px="md" justify="space-between">
+            <Title order={4}>Practice Management</Title>
+            <Group gap="sm">
+              <Avatar size="sm" radius="xl" color="blue">
+                <IconUser size={16} />
+              </Avatar>
+              <MantineText size="sm">Dr. Smith</MantineText>
             </Group>
           </Group>
         </AppShell.Header>
+
+        <AppShell.Navbar p="xs">
+          <AppShell.Section>
+            {navItems.map((item) => (
+              <NavLink
+                key={item.path}
+                component={Link}
+                to={item.path}
+                label={collapsed ? undefined : item.label}
+                leftSection={<item.icon size={20} />}
+                active={location.pathname === item.path}
+                disabled={item.disabled}
+                variant="light"
+                style={{ borderRadius: 8 }}
+              />
+            ))}
+          </AppShell.Section>
+          
+          <AppShell.Section grow mt="auto">
+            <Divider mb="sm" />
+            <NavLink
+              label={collapsed ? undefined : "Logout"}
+              leftSection={<IconSettings size={20} />}
+              variant="light"
+              style={{ borderRadius: 8 }}
+            />
+          </AppShell.Section>
+        </AppShell.Navbar>
+
         <AppShell.Main>
           <Outlet />
         </AppShell.Main>
@@ -41,7 +84,7 @@ const IndexComponent = () => {
   return (
     <Container size="xl" py="xl">
       <Title order={1}>Practice Management</Title>
-      <Text c="dimmed">Welcome to the Practice Management System</Text>
+      <MantineText c="dimmed">Welcome to the Practice Management System</MantineText>
     </Container>
   );
 };
@@ -97,19 +140,11 @@ const CalendarComponent = () => {
   };
 
   return (
-    <Container size="xl" py="xl">
-      <Title order={1} mb="xs">
-        Schedule
-      </Title>
-      <Text c="dimmed" mb="xl">
-        View and manage appointments
-      </Text>
-      <ScheduleCalendar
-        events={events}
-        clinicians={clinicians}
-        onEventClick={handleEventClick}
-      />
-    </Container>
+    <ScheduleCalendar
+      events={events}
+      clinicians={clinicians}
+      onEventClick={handleEventClick}
+    />
   );
 };
 

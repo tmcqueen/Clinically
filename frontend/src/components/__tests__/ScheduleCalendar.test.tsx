@@ -27,14 +27,16 @@ const renderWithMantine = (ui: React.ReactElement) => {
 };
 
 describe("ScheduleCalendar", () => {
-  it("renders calendar with title", () => {
+  it("renders calendar with navigation", () => {
     renderWithMantine(
       <ScheduleCalendar
         events={mockEvents}
         clinicians={clinicians}
       />
     );
-    expect(screen.getByText("Schedule")).toBeDefined();
+    expect(screen.getByText("Previous")).toBeDefined();
+    expect(screen.getByText("Next")).toBeDefined();
+    expect(screen.getByText("Today")).toBeDefined();
   });
 
   it("renders clinician filter", () => {
@@ -44,7 +46,7 @@ describe("ScheduleCalendar", () => {
         clinicians={clinicians}
       />
     );
-    expect(screen.getByText("Filter by Clinician")).toBeDefined();
+    expect(screen.getByPlaceholderText("Clinician")).toBeDefined();
   });
 
   it("renders view selector", () => {
@@ -59,13 +61,13 @@ describe("ScheduleCalendar", () => {
     expect(screen.getByText("Month")).toBeDefined();
   });
 
-  it("renders color by selector", () => {
+  it("renders patient search", () => {
     renderWithMantine(
       <ScheduleCalendar
         events={mockEvents}
         clinicians={clinicians}
       />
     );
-    expect(screen.getByText("Color By")).toBeDefined();
+    expect(screen.getByPlaceholderText("Patient")).toBeDefined();
   });
 });

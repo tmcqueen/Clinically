@@ -7,3 +7,4 @@ build/
 *.db
 backend/dev.db
 .beads/
+backend/.wrangler/
