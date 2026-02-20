@@ -1,0 +1,17 @@
+{
+  "name": "practice-management-api",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20241127.0",
+    "wrangler": "^3.93.0",
+    "typescript": "^5.7.2"
+  },
+  "dependencies": {
+    "hono": "^4.12.0"
+  }
+}
