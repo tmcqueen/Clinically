@@ -18,6 +18,8 @@
     "@mantine/notifications": "^8.3.15",
     "@tabler/icons-react": "^3.37.1",
     "@tanstack/react-router": "^1.161.3",
+    "@tanstack/router-cli": "^1.161.3",
+    "@tanstack/router-devtools": "^1.161.3",
     "dayjs": "^1.11.19",
     "react": "^19.2.0",
     "react-dom": "^19.2.0"
