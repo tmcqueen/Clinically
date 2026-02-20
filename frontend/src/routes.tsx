@@ -54,7 +54,7 @@ const RootComponent = () => {
           </AppShell.Section>
         </AppShell.Navbar>
 
-        <AppShell.Main>
+        <AppShell.Main style={{ width: "100vw" }}>
           <Outlet />
         </AppShell.Main>
       </AppShell>
