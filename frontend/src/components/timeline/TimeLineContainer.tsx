@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
-import { Box, ActionIcon, Paper, Text } from "@mantine/core";
+import { Box, ActionIcon, Paper, Text, Alert } from "@mantine/core";
+import { IconAlertCircle } from "@tabler/icons-react";
 import { useHotkeys } from "@mantine/hooks";
 import { IconChevronLeft, IconChevronRight } from "@tabler/icons-react";
 import {
@@ -76,6 +77,7 @@ function TimeLineContainerInner({
     originalEndMinutes: number;
   } | null>(null);
   const [conflictingEvent, setConflictingEvent] = useState<ConflictInfo | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const minutesToTimeStr = (minutes: number): string => {
     return `${Math.floor(minutes / 60).toString().padStart(2, "0")}:${(minutes % 60).toString().padStart(2, "0")}:00`;
@@ -246,33 +248,8 @@ function TimeLineContainerInner({
       const hasConflict = !!conflictingEventInfo;
       const isValid = isValidDrop && !hasConflict;
 
-      if (!isValid && conflictingEventInfo) {
-        // Get clinician name for the conflicting event
-        const clinician = filteredEmployees.find((emp) => emp.id === conflictingEventInfo.clinicianId);
-        
-        setConflictingEvent({
-          eventId: conflictingEventInfo.id,
-          patientName: conflictingEventInfo.patientName,
-          visitType: conflictingEventInfo.visitType,
-          start: conflictingEventInfo.start,
-          end: conflictingEventInfo.end,
-          clinicianName: clinician?.displayName || "Unknown",
-          clinicianId: conflictingEventInfo.clinicianId,
-        });
-        
-        setPendingDrop({
-          event: draggedEvent,
-          providerId: dropTargetProviderId,
-          startMinutes: newStartMinutes,
-          endMinutes: newEndMinutes,
-          originalProviderId: dragState.originalProviderId,
-          originalStartMinutes: dragState.originalStartMinutes,
-          originalEndMinutes: dragState.originalEndMinutes,
-        });
-        
-        setConflictModalOpen(true);
-        
-        // Reset drag state but don't complete the drop yet
+      if (!isValid) {
+        // Drop is invalid - either doesn't fit in zone or has conflict
         setDragState({
           isDragging: false,
           activeEvent: null,
@@ -282,13 +259,54 @@ function TimeLineContainerInner({
           originalStartMinutes: null,
           originalEndMinutes: null,
         });
+        
+        if (conflictingEventInfo) {
+          // Show conflict modal
+          const clinician = filteredEmployees.find((emp) => emp.id === conflictingEventInfo.clinicianId);
+          
+          setConflictingEvent({
+            eventId: conflictingEventInfo.id,
+            patientName: conflictingEventInfo.patientName,
+            visitType: conflictingEventInfo.visitType,
+            start: conflictingEventInfo.start,
+            end: conflictingEventInfo.end,
+            clinicianName: clinician?.displayName || "Unknown",
+            clinicianId: conflictingEventInfo.clinicianId,
+          });
+          
+          setPendingDrop({
+            event: draggedEvent,
+            providerId: dropTargetProviderId,
+            startMinutes: newStartMinutes,
+            endMinutes: newEndMinutes,
+            originalProviderId: dragState.originalProviderId,
+            originalStartMinutes: dragState.originalStartMinutes,
+            originalEndMinutes: dragState.originalEndMinutes,
+          });
+          
+          setConflictModalOpen(true);
+        }
         return;
       }
 
       if (onEventDrop) {
         const newStart = minutesToTimeStr(newStartMinutes);
         const newEnd = minutesToTimeStr(newEndMinutes);
-        onEventDrop(draggedEvent.id, dropTargetProviderId, newStart, newEnd);
+        try {
+          onEventDrop(draggedEvent.id, dropTargetProviderId, newStart, newEnd);
+        } catch (error) {
+          setErrorMessage(error instanceof Error ? error.message : "Failed to move appointment. Please try again.");
+          setDragState({
+            isDragging: false,
+            activeEvent: null,
+            snapPosition: null,
+            targetProviderId: null,
+            originalProviderId: null,
+            originalStartMinutes: null,
+            originalEndMinutes: null,
+          });
+          return;
+        }
       }
 
       setDragState({
@@ -323,95 +341,99 @@ function TimeLineContainerInner({
         return;
       }
 
-      if (option === "force") {
-        // Force drop - overwrite conflicting appointment
-        const newStart = minutesToTimeStr(startMinutes);
-        const newEnd = minutesToTimeStr(endMinutes);
-        onEventDrop(event.id, providerId, newStart, newEnd);
-      } else if (option === "swap") {
-        // Swap - dragged goes to target, conflicting goes to dragged's original position
-        // Move dragged to new position
-        const newStart = minutesToTimeStr(startMinutes);
-        const newEnd = minutesToTimeStr(endMinutes);
-        onEventDrop(event.id, providerId, newStart, newEnd);
+      try {
+        if (option === "force") {
+          // Force drop - overwrite conflicting appointment
+          const newStart = minutesToTimeStr(startMinutes);
+          const newEnd = minutesToTimeStr(endMinutes);
+          onEventDrop(event.id, providerId, newStart, newEnd);
+        } else if (option === "swap") {
+          // Swap - dragged goes to target, conflicting goes to dragged's original position
+          // Move dragged to new position
+          const newStart = minutesToTimeStr(startMinutes);
+          const newEnd = minutesToTimeStr(endMinutes);
+          onEventDrop(event.id, providerId, newStart, newEnd);
 
-        // Move conflicting to original position
-        const { originalProviderId, originalStartMinutes, originalEndMinutes } = pendingDrop;
-        if (originalProviderId && originalStartMinutes !== null && originalEndMinutes !== null) {
-          const origStart = minutesToTimeStr(originalStartMinutes);
-          const origEnd = minutesToTimeStr(originalEndMinutes);
-          onEventDrop(conflictingEvent.eventId, originalProviderId, origStart, origEnd);
-        }
-      } else if (option === "move-next") {
-        // Move conflicting to next available slot on its current provider
-        const conflictingProviderId = conflictingEvent.clinicianId;
-        const conflictingDuration = timeToMinutes(conflictingEvent.end) - timeToMinutes(conflictingEvent.start);
-        const conflictingCurrentEndMinutes = timeToMinutes(conflictingEvent.end);
-
-        // Get events for this provider on the selected date
-        const providerEvents = events.filter(
-          (e) => e.clinicianId === conflictingProviderId && e.start.startsWith(selectedDate)
-        ).sort((a, b) => a.start.localeCompare(b.start));
-
-        // Find next available slot after the conflicting event
-        let nextStartMinutes = snapToQuarterHour(conflictingCurrentEndMinutes);
-        let foundSlot = false;
-
-        // Sort by start time and find gap after conflicting event
-        const sortedEvents = [...providerEvents].sort((a, b) => timeToMinutes(a.start) - timeToMinutes(b.start));
-        
-        for (const evt of sortedEvents) {
-          const evtStart = timeToMinutes(evt.start);
-          const evtEnd = timeToMinutes(evt.end);
-          
-          // Skip the conflicting event itself
-          if (evt.id === conflictingEvent.eventId) continue;
-
-          // If this event starts after our proposed start time
-          if (evtStart >= nextStartMinutes) {
-            // Check if there's enough gap
-            if (evtStart >= nextStartMinutes + conflictingDuration) {
-              foundSlot = true;
-              break;
-            } else {
-              // Move past this event
-              nextStartMinutes = snapToQuarterHour(evtEnd);
-            }
+          // Move conflicting to original position
+          const { originalProviderId, originalStartMinutes, originalEndMinutes } = pendingDrop;
+          if (originalProviderId && originalStartMinutes !== null && originalEndMinutes !== null) {
+            const origStart = minutesToTimeStr(originalStartMinutes);
+            const origEnd = minutesToTimeStr(originalEndMinutes);
+            onEventDrop(conflictingEvent.eventId, originalProviderId, origStart, origEnd);
           }
-        }
+        } else if (option === "move-next") {
+          // Move conflicting to next available slot on its current provider
+          const conflictingProviderId = conflictingEvent.clinicianId;
+          const conflictingDuration = timeToMinutes(conflictingEvent.end) - timeToMinutes(conflictingEvent.start);
+          const conflictingCurrentEndMinutes = timeToMinutes(conflictingEvent.end);
 
-        // If no slot found in existing events, check if it fits until end of day (5 PM = 1020 minutes)
-        if (!foundSlot) {
-          const dayEndMinutes = 17 * 60; // 5 PM
-          if (nextStartMinutes + conflictingDuration <= dayEndMinutes) {
-            foundSlot = true;
-          } else {
-            // Try earlier in the day - find first gap from start
-            nextStartMinutes = 0;
-            for (const evt of sortedEvents) {
-              if (evt.id === conflictingEvent.eventId) continue;
-              const evtStart = timeToMinutes(evt.start);
-              const evtEnd = timeToMinutes(evt.end);
-              
+          // Get events for this provider on the selected date
+          const providerEvents = events.filter(
+            (e) => e.clinicianId === conflictingProviderId && e.start.startsWith(selectedDate)
+          ).sort((a, b) => a.start.localeCompare(b.start));
+
+          // Find next available slot after the conflicting event
+          let nextStartMinutes = snapToQuarterHour(conflictingCurrentEndMinutes);
+          let foundSlot = false;
+
+          // Sort by start time and find gap after conflicting event
+          const sortedEvents = [...providerEvents].sort((a, b) => timeToMinutes(a.start) - timeToMinutes(b.start));
+          
+          for (const evt of sortedEvents) {
+            const evtStart = timeToMinutes(evt.start);
+            const evtEnd = timeToMinutes(evt.end);
+            
+            // Skip the conflicting event itself
+            if (evt.id === conflictingEvent.eventId) continue;
+
+            // If this event starts after our proposed start time
+            if (evtStart >= nextStartMinutes) {
+              // Check if there's enough gap
               if (evtStart >= nextStartMinutes + conflictingDuration) {
                 foundSlot = true;
                 break;
+              } else {
+                // Move past this event
+                nextStartMinutes = snapToQuarterHour(evtEnd);
               }
-              nextStartMinutes = snapToQuarterHour(evtEnd);
             }
           }
-        }
 
-        if (foundSlot) {
-          const nextStart = minutesToTimeStr(nextStartMinutes);
-          const nextEnd = minutesToTimeStr(nextStartMinutes + conflictingDuration);
-          onEventDrop(conflictingEvent.eventId, conflictingProviderId, nextStart, nextEnd);
-        }
+          // If no slot found in existing events, check if it fits until end of day (5 PM = 1020 minutes)
+          if (!foundSlot) {
+            const dayEndMinutes = 17 * 60; // 5 PM
+            if (nextStartMinutes + conflictingDuration <= dayEndMinutes) {
+              foundSlot = true;
+            } else {
+              // Try earlier in the day - find first gap from start
+              nextStartMinutes = 0;
+              for (const evt of sortedEvents) {
+                if (evt.id === conflictingEvent.eventId) continue;
+                const evtStart = timeToMinutes(evt.start);
+                const evtEnd = timeToMinutes(evt.end);
+                
+                if (evtStart >= nextStartMinutes + conflictingDuration) {
+                  foundSlot = true;
+                  break;
+                }
+                nextStartMinutes = snapToQuarterHour(evtEnd);
+              }
+            }
+          }
 
-        // Also move the dragged event to the target
-        const draggedStart = minutesToTimeStr(startMinutes);
-        const draggedEnd = minutesToTimeStr(endMinutes);
-        onEventDrop(event.id, providerId, draggedStart, draggedEnd);
+          if (foundSlot) {
+            const nextStart = minutesToTimeStr(nextStartMinutes);
+            const nextEnd = minutesToTimeStr(nextStartMinutes + conflictingDuration);
+            onEventDrop(conflictingEvent.eventId, conflictingProviderId, nextStart, nextEnd);
+          }
+
+          // Also move the dragged event to the target
+          const draggedStart = minutesToTimeStr(startMinutes);
+          const draggedEnd = minutesToTimeStr(endMinutes);
+          onEventDrop(event.id, providerId, draggedStart, draggedEnd);
+        }
+      } catch (error) {
+        setErrorMessage(error instanceof Error ? error.message : "Failed to resolve conflict. Please try again.");
       }
 
       setConflictModalOpen(false);
@@ -429,6 +451,18 @@ function TimeLineContainerInner({
       onDragEnd={handleDragEnd}
     >
       <Box ref={containerRef} style={{ height: "100%", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+        {/* Error Alert */}
+        {errorMessage && (
+          <Alert
+            icon={<IconAlertCircle size={16} />}
+            color="red"
+            onClose={() => setErrorMessage(null)}
+            withCloseButton
+            mb="xs"
+          >
+            {errorMessage}
+          </Alert>
+        )}
         {/* HEADER ROW - Sticky at top */}
         <Box 
           style={{ 
