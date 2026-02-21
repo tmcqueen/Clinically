@@ -3,14 +3,12 @@ import {
   Paper,
   Group,
   Select,
-  SegmentedControl,
   Button,
   Box,
   TextInput,
   Title,
   Text,
 } from "@mantine/core";
-import { Calendar } from "@mantine/dates";
 import dayjs from "dayjs";
 
 export interface CalendarEvent {
@@ -28,7 +26,6 @@ export interface CalendarEvent {
 export interface CalendarFilters {
   clinicianId: string | null;
   patientName: string;
-  view: "day" | "week" | "month";
   colorBy: "clinician" | "visit-type" | "status";
 }
 
@@ -320,7 +317,6 @@ export function ScheduleCalendar({
   const [filters, setFilters] = useState<CalendarFilters>({
     clinicianId: null,
     patientName: "",
-    view: "day",
     colorBy: "clinician",
   });
   
@@ -339,16 +335,8 @@ export function ScheduleCalendar({
     return true;
   });
 
-  const getDayEvents = (date: dayjs.Dayjs): CalendarEvent[] => {
-    return filteredEvents.filter((event) => {
-      const eventDay = dayjs(event.start);
-      return eventDay.isSame(date, "day");
-    });
-  };
-
   const navigateDate = (direction: "prev" | "next") => {
-    const unit = filters.view === "month" ? "month" : filters.view === "week" ? "week" : "day";
-    setSelectedDate(dayjs(selectedDate).add(direction === "next" ? 1 : -1, unit).format("YYYY-MM-DD"));
+    setSelectedDate(dayjs(selectedDate).add(direction === "next" ? 1 : -1, "day").format("YYYY-MM-DD"));
   };
 
   return (
@@ -399,81 +387,17 @@ export function ScheduleCalendar({
             size="xs"
             style={{ width: 80 }}
           />
-          
-          <SegmentedControl
-            size="xs"
-            value={filters.view}
-            onChange={(value) => setFilters({ ...filters, view: value as CalendarFilters["view"] })}
-            data={[
-              { value: "day", label: "Day" },
-              { value: "week", label: "Week" },
-              { value: "month", label: "Month" },
-            ]}
-          />
         </Group>
       </Group>
 
       <Box style={{ flex: 1, overflow: "hidden" }}>
-        {filters.view === "month" && (
-          <Calendar
-            date={selectedDate}
-            onDateChange={setSelectedDate}
-            getDayProps={(date) => ({
-              selected: dayjs(date).isSame(selectedDate, "day"),
-            })}
-          />
-        )}
-
-        {filters.view === "week" && (
-          <Box style={{ height: "100%", overflowY: "auto" }}>
-            <Group grow gap={4}>
-              {Array.from({ length: 7 }, (_, i) => {
-                const day = dayjs(selectedDate).startOf("week").add(i, "day");
-                const dayEvents = getDayEvents(day);
-                const isToday = day.isSame(dayjs(), "day");
-                
-                return (
-                  <Paper key={i} p={4} withBorder style={{ minHeight: 200 }}>
-                    <Text size="xs" fw={isToday ? 700 : 500} ta="center" mb="xs">
-                      {day.format("ddd MMM D")}
-                    </Text>
-                    {dayEvents.map((event) => {
-                      const color = filters.colorBy === "clinician" 
-                        ? clinicianColors[event.clinicianName] || "gray"
-                        : filters.colorBy === "visit-type"
-                        ? visitTypeColors[event.visitType] || "gray"
-                        : statusColors[event.status] || "gray";
-                      
-                      return (
-                        <Paper
-                          key={event.id}
-                          p={2}
-                          mb={2}
-                          bg={color}
-                          style={{ cursor: "pointer" }}
-                          onClick={() => onEventClick?.(event)}
-                        >
-                          <Text size="xs" c="white">{dayjs(event.start).format("h:mm")}</Text>
-                          <Text size="xs" c="white" lineClamp={1}>{event.patientName}</Text>
-                        </Paper>
-                      );
-                    })}
-                  </Paper>
-                );
-              })}
-            </Group>
-          </Box>
-        )}
-
-        {filters.view === "day" && (
-          <DayView
-            events={filteredEvents}
-            selectedDate={selectedDate}
-            filters={filters}
-            onEventClick={onEventClick}
-            currentTime={currentTime}
-          />
-        )}
+        <DayView
+          events={filteredEvents}
+          selectedDate={selectedDate}
+          filters={filters}
+          onEventClick={onEventClick}
+          currentTime={currentTime}
+        />
       </Box>
     </Paper>
   );

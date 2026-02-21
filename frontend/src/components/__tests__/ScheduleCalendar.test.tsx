@@ -49,16 +49,14 @@ describe("ScheduleCalendar", () => {
     expect(screen.getByPlaceholderText("Clinician")).toBeDefined();
   });
 
-  it("renders view selector", () => {
+  it("renders color by selector", () => {
     renderWithMantine(
       <ScheduleCalendar
         events={mockEvents}
         clinicians={clinicians}
       />
     );
-    expect(screen.getByText("Day")).toBeDefined();
-    expect(screen.getByText("Week")).toBeDefined();
-    expect(screen.getByText("Month")).toBeDefined();
+    expect(screen.getByText("Clinician")).toBeDefined();
   });
 
   it("renders patient search", () => {
